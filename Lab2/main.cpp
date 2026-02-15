@@ -7,7 +7,7 @@
 #include <atomic>
 #include <iomanip>
 
-#define N 10000000
+#define N 1000000000
 #define MAX_VAL 77777
 #define THREADS 4
 
