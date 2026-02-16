@@ -7,7 +7,7 @@
 #include <atomic>
 #include <iomanip>
 
-#define N 1000000000
+#define N 100000000
 #define MAX_VAL 77777
 #define THREADS 4
 
@@ -32,19 +32,13 @@ void notParallelSolution(const std::vector<int>& numbers, int& counter, int& max
 }
 
 void mutexThreadWorker(const std::vector<int>& numbers, size_t start, size_t end, int& globalCounter, int& globalMax, std::mutex& globalVarMtx) {
-    int localCounter = 0;
-    int localMax = INT_MIN;
-
     for (size_t i = start; i < end; i++) {
         if ((numbers[i] % 2) != 0) {
-            localCounter++;
-            localMax = std::max(localMax, numbers[i]);
+            std::lock_guard<std::mutex> lock(globalVarMtx);
+            globalCounter++;
+            globalMax = std::max(globalMax, numbers[i]);
         }
     }
-
-    std::lock_guard<std::mutex> lock(globalVarMtx);
-    globalCounter += localCounter;
-    globalMax = std::max(globalMax, localMax);
 }
 
 void parallelMutexSolution(const std::vector<int>& numbers, int nThreads, int& globalCounter, int& globalMax) {
@@ -61,33 +55,27 @@ void parallelMutexSolution(const std::vector<int>& numbers, int nThreads, int& g
         threads.emplace_back(mutexThreadWorker, std::cref(numbers), start, end,
             std::ref(globalCounter), std::ref(globalMax), std::ref(globalMtx));
     }
-    for (auto& t : threads){ 
-        t.join(); 
+
+    for (auto& t : threads) {
+        t.join();
     }
 }
 
 void atomicThreadWorker(const std::vector<int>& numbers, size_t start, size_t end, std::atomic<int>& globalCounter, std::atomic<int>& globalMax) {
-
-    int localCounter = 0;
-    int localMax = INT_MIN;
-
     for (size_t i = start; i < end; i++) {
         if ((numbers[i] % 2) != 0) {
-            localCounter++;
-            localMax = std::max(localMax, numbers[i]);
+            int expectedCount = globalCounter.load();
+            do {
+
+            } while (!globalCounter.compare_exchange_weak(expectedCount, expectedCount + 1));
+
+            int expectedMax = globalMax.load();
+            do {
+                if (expectedMax >= numbers[i]) {
+                    break;
+                }
+            } while (!globalMax.compare_exchange_weak(expectedMax, numbers[i]));
         }
-    }
-
-    int expectedCount = globalCounter.load();
-
-    while (!globalCounter.compare_exchange_weak(expectedCount, expectedCount + localCounter)) {
-
-    }
-
-    int expectedMax = globalMax.load();
-
-    while (expectedMax < localMax && !globalMax.compare_exchange_weak(expectedMax, localMax)) {
-
     }
 }
 
@@ -104,8 +92,8 @@ void parallelAtomicSolution(const std::vector<int>& numbers, int nThreads, std::
         threads.emplace_back(atomicThreadWorker, std::cref(numbers), start, end,
             std::ref(globalCounter), std::ref(globalMax));
     }
-    for (auto& t : threads){ 
-        t.join(); 
+    for (auto& t : threads) {
+        t.join();
     }
 }
 
@@ -116,7 +104,7 @@ int main() {
     int counterSeq, maxValSeq;
     int counterMut, maxValMut;
     std::atomic<int> counterAtom, maxValAtom;
-    
+
     notParallelSolution(numbers, counterSeq, maxValSeq);
 
     std::cout << "--- Sequential algorithm ---\n";
@@ -151,7 +139,7 @@ int main() {
     std::cout << "Mutex vs Sequential:  x" << std::fixed << std::setprecision(2) << speedupMut << "\n";
     std::cout << "Atomic vs Sequential: x" << std::fixed << std::setprecision(2) << speedupAtom << "\n";
 
-    std::cout << "Atomic vs Mutex: ";
+    std::cout << "Atomic vs Mutex:      ";
     if (atomVsMut > 1.0) {
         std::cout << "atomic is x" << std::fixed << std::setprecision(2) << atomVsMut << " FASTER\n";
     }
