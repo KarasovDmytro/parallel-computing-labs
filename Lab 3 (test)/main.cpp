@@ -217,6 +217,8 @@ public:
     }
 
     void printAnalysis() {
+        shared_lock<shared_mutex> lock(rw_mutex);
+
         printLog("\n--- POOL WORK STATISTIC ---");
         printLog("Amount of working threads: " + to_string(workers.size()));
 

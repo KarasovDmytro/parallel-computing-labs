@@ -243,6 +243,8 @@ public:
     }
 
     void printAnalysis() {
+        shared_lock<shared_mutex> lock(rw_mutex);
+
         printLog("\n--- Pool work analysis ---");
         printLog("Number of working threads: " + to_string(workers.size()));
 
@@ -252,6 +254,7 @@ public:
         }
 
         if (execution_phases_count > 0) {
+            printLog("Execution stages passed: " + to_string(execution_phases_count));
             printLog("Medium queue size: " + to_string(max_queue_length_sum / execution_phases_count));
         }
 
