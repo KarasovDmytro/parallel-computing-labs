@@ -38,7 +38,7 @@ int main() {
     }
     std::cout << "Connected successfully!\n\n";
 
-    int nThreads = 4;
+    int nThreads = 2;
     int dataSize = 100000000;
 
     std::vector<int> testData(dataSize);
